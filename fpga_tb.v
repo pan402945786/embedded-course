@@ -21,7 +21,7 @@
 // Additional Comments:
 // 
 ////////////////////////////////////////////////////////////////////////////////
-
+`include "register.v"
 module fpga_tb;
 
 	// Inputs
@@ -38,6 +38,18 @@ module fpga_tb;
 	wire USB_SLWR;
 	wire USB_SLOE;
 	wire USB_PKEND;
+	
+	wire[`LOGMAXPKG - 1 : 0] COUNTER;
+	wire WB_RST;
+	wire WB_STB;
+	wire WB_WE;
+	wire [3:0] WB_SEL;
+	wire WB_CYC;
+	wire [31:0]  WB_ADDR;
+	wire [31:0]  WB_DATA_I;
+	wire [31:0]  WB_DATA_O;
+	wire WB_STALL;
+	wire WB_ACK;
 
 	// Bidirs
 	wire [15:0] USB_DATA;
@@ -55,6 +67,17 @@ module fpga_tb;
 		.USB_FLAGC(USB_FLAGC), 
 		.USB_FLAGD(USB_FLAGD), 
 		.USB_PKEND(USB_PKEND), 
+		.COUNTER(COUNTER),
+		.WB_RST(WB_RST),
+		.WB_STB(WB_STB),
+		.WB_WE(WB_WE),
+		.WB_SEL(WB_SEL),
+		.WB_CYC(WB_CYC),
+		.WB_ADDR(WB_ADDR),
+		.WB_DATA_I(WB_DATA_I),
+		.WB_DATA_O(WB_DATA_O),
+		.WB_STALL(WB_STALL),
+		.WB_ACK(WB_ACK),
 		.USB_IFCLK(USB_IFCLK)
 	);
 	reg [15:0] in_fifo[0:255];
@@ -72,7 +95,8 @@ module fpga_tb;
 		in_fifo_addr = 0;
 		out_fifo_addr = 0;
 		
-		for (i = 0; i < 256; i = i + 1) begin
+		//for (i = 0; i < 256; i = i + 1) begin
+		for (i = 0; i < 20; i = i + 1) begin
 			out_fifo[i] = i;
 		end
 		// Wait 100 ns for global reset to finish
@@ -86,7 +110,7 @@ module fpga_tb;
 
 	always @(posedge USB_IFCLK) 
 	begin
-		if (out_fifo_addr == 9'b10000_0000) 
+		if (out_fifo_addr == 9'b00000_0001) 
 			USB_FLAGA <= 0;
 		else
 			USB_FLAGA <= 1;

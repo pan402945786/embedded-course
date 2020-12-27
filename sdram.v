@@ -147,16 +147,16 @@ reg [SDRAM_DQM_W-1:0]  dqm_buffer_q;
 
 wire [SDRAM_DATA_W-1:0] sdram_data_in_w;
 
-reg                    refresh_q;
+reg                    refresh_q = 1;
 
 reg [SDRAM_BANKS-1:0]  row_open_q;
 reg [SDRAM_ROW_W-1:0]  active_row_q[0:SDRAM_BANKS-1];
 
-reg  [STATE_W-1:0]     state_q;
-reg  [STATE_W-1:0]     next_state_r;
-reg  [STATE_W-1:0]     target_state_r;
-reg  [STATE_W-1:0]     target_state_q;
-reg  [STATE_W-1:0]     delay_state_q;
+reg  [STATE_W-1:0]     state_q = 0;
+reg  [STATE_W-1:0]     next_state_r = 0;
+reg  [STATE_W-1:0]     target_state_r = 0;
+reg  [STATE_W-1:0]     target_state_q = 0;
+reg  [STATE_W-1:0]     delay_state_q = 0;
 
 // Address bits
 wire [SDRAM_ROW_W-1:0]  addr_col_w  = {{(SDRAM_ROW_W-SDRAM_COL_W){1'b0}}, addr_i[SDRAM_COL_W:2], 1'b0};
@@ -177,6 +177,7 @@ begin
     //-----------------------------------------
     STATE_INIT :
     begin
+			$display("STATE_INIT\n");
         if (refresh_q)
             next_state_r = STATE_IDLE;
     end
@@ -188,6 +189,7 @@ begin
         // Pending refresh
         // Note: tRAS (open row time) cannot be exceeded due to periodic
         //        auto refreshes.
+		  $display("STATE_IDLE\n");
         if (refresh_q)
         begin
             // Close open rows, then refresh
@@ -236,6 +238,7 @@ begin
     //-----------------------------------------
     STATE_ACTIVATE :
     begin
+	 $display("STATE_ACTIVATE\n");
         // Proceed to read or write state
         next_state_r = target_state_r;
     end
@@ -244,6 +247,7 @@ begin
     //-----------------------------------------
     STATE_READ :
     begin
+	 $display("STATE_READ\n");
         next_state_r = STATE_READ_WAIT;
     end
     //-----------------------------------------
@@ -251,6 +255,7 @@ begin
     //-----------------------------------------
     STATE_READ_WAIT :
     begin
+	 $display("STATE_READ_WAIT\n");
         next_state_r = STATE_IDLE;
 
         // Another pending read request (with no refresh pending)
@@ -266,6 +271,7 @@ begin
     //-----------------------------------------
     STATE_WRITE0 :
     begin
+	 $display("STATE_WRITE0\n");
         next_state_r = STATE_WRITE1;
     end
     //-----------------------------------------

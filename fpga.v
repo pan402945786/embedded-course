@@ -48,6 +48,19 @@ module fpga(
 	input			      USB_FLAGD,				 //	USB Flag
 	output			   USB_PKEND,				 //	USB Packet end
 	//output			   USB_WU2,				    //	USB Wake Up USB2
+	
+	output COUNTER,
+	output WB_RST,
+	output WB_STB,
+	output WB_WE,
+	output WB_SEL,
+	output WB_CYC,
+	output WB_ADDR,
+	output WB_DATA_I,
+	output WB_DATA_O,
+	output WB_STALL,
+	output WB_ACK,
+	
 	input			      USB_IFCLK				 //	USB Clock inout
 //	input			      USB_CLK_OUT,			 //	USB Clock Output
 //	input	   [1:0]	   USB_INT,				    //   USB Interrupt
@@ -91,9 +104,6 @@ wire [3:0] WB_SEL;
 wire WB_CYC;
 wire [31:0]  WB_ADDR;
 wire [31:0]  WB_DATA_I;
-wire [31:0]  WB_DATA_O;
-wire WB_STALL;
-wire WB_ACK;
 
 reg wb_rst = 0;
 reg wb_stb = 0;
@@ -102,9 +112,9 @@ reg [3:0] wb_sel = 0;
 reg wb_cyc = 0;
 reg [31:0] wb_addr = 0;
 reg [31:0] wb_data_i = 0;
-reg [31:0] wb_data_o = 0;
-reg wb_stall = 0;
-reg wb_ack = 0;
+
+reg[31:0] data_read_from_sdram = 32'hffff_ffff;
+
 
 assign WB_RST = wb_rst;
 assign WB_STB = wb_stb;
@@ -113,9 +123,10 @@ assign WB_SEL = wb_sel;
 assign WB_CYC = wb_cyc;
 assign WB_ADDR = wb_addr;
 assign WB_DATA_I = wb_data_i;
-assign WB_DATA_O = wb_data_o;
-assign WB_STALL = wb_stall;
-assign WB_ACK = wb_ack;
+
+wire[`LOGMAXPKG - 1 : 0] COUNTER;
+assign COUNTER = counter;
+
 
 sdram #(
 .DATA_WIDTH (16)
@@ -157,16 +168,19 @@ reg                      usb_pkend = 1'b1;
 reg [1 : 0]              usb_addr = 2'b00;
 reg [DATA_WIDTH - 1 :  0]usb_data = 0;
 
+reg [3:0] led = 4'b0;
+
 assign USB_ADDR = usb_addr;
 assign USB_SLRD = usb_slrd;
 assign USB_SLWR = usb_slwr;
 assign USB_SLOE = usb_sloe;
 assign USB_PKEND= usb_pkend;
 assign USB_DATA= (usb_sloe == 1'b1)? usb_data : 'bz;
-assign LED[0] = USB_FLAGA;
-assign LED[1] = USB_FLAGB;
-assign LED[2] = USB_FLAGC;
-assign LED[3] = USB_FLAGD;
+//assign LED[0] = USB_FLAGA;
+//assign LED[1] = USB_FLAGB;
+//assign LED[2] = USB_FLAGC;
+//assign LED[3] = USB_FLAGD;
+assign LED = led;
 
 /*
 状态机
@@ -185,9 +199,13 @@ always @(*) begin
 			  else begin
 			      state_nxt = IDLE;
 			  end
+			  $display("IDLE\n");
+			  led = 4'b1111;
 		 end
 		 SELECT_READ_FIFO: begin
 		    state_nxt = READ_FROM_USB;
+			 $display("SELECT_READ_FIFO\n");
+			 led = SELECT_READ_FIFO;
 		 end
 		 READ_FROM_USB: begin
 		    if((counter == `MAXPKG - 1) || (USB_FLAGA == 1'b0))begin
@@ -196,20 +214,40 @@ always @(*) begin
           else begin
 			     state_nxt = READ_FROM_USB;
 			 end
+			 $display("READ_FROM_USB\n");
+			 led = READ_FROM_USB;
 		 end
 		 
 		 // 新增
 		 SELECT_WRITE_SDRAM: begin
-		    state_nxt = WRITE_TO_SDRAM;
+				state_nxt = WRITE_TO_SDRAM;
+				$display("SELECT_WRITE_SDRAM\n");
+				led = SELECT_WRITE_SDRAM;
 		 end
 		 WRITE_TO_SDRAM: begin
-		    state_nxt = SELECT_READ_SDRAM;
+			if (WB_ACK == 1'b1) begin
+				state_nxt = SELECT_READ_SDRAM;
+			end
+		   else begin
+				state_nxt = WRITE_TO_SDRAM;
+			end
+			$display("WRITE_TO_SDRAM\n");
+			led = WRITE_TO_SDRAM;
 		 end
 		 SELECT_READ_SDRAM: begin
 		    state_nxt = READ_FROM_SDRAM;
+			 $display("SELECT_READ_SDRAM\n");
+			 led = SELECT_READ_SDRAM;
 		 end
 		 READ_FROM_SDRAM: begin
-		    state_nxt = SELECT_WRITE_FIFO;
+			if (WB_ACK == 1'b1) begin
+				state_nxt = SELECT_WRITE_FIFO;
+			end
+		   else begin
+				state_nxt = READ_FROM_SDRAM;
+			end
+			$display("READ_FROM_SDRAM\n");
+			led = READ_FROM_SDRAM;
 		 end
 		 // end新增
 		 
@@ -220,6 +258,8 @@ always @(*) begin
 			  else begin
 			      state_nxt = SELECT_WRITE_FIFO;
 			  end
+			  $display("SELECT_WRITE_FIFO\n");
+			  led = SELECT_WRITE_FIFO;
 		 end
 		 WRITE_TO_USB: begin
 		    if ((counter >= number) || (USB_FLAGD == 1'b0)) begin
@@ -228,9 +268,13 @@ always @(*) begin
 			 else begin
 			     state_nxt = WRITE_TO_USB;
 			 end
+			 $display("WRITE_TO_USB\n");
+			 led = WRITE_TO_USB;
 		 end
 		 default: begin
 		     state_nxt = IDLE;
+			  $display("default\n");
+			  led = 4'b1111;
 		 end
 	endcase
 end
@@ -278,7 +322,32 @@ always @(posedge USB_IFCLK) begin
 			 number <= counter;
 			 usb_data <= 0;
 		 end
-		 
+		 // 新增
+		 SELECT_WRITE_SDRAM: begin
+			wb_cyc <= 1'b1;
+			wb_stb <= 1'b1;
+			wb_we <= 1'b1;
+			wb_addr  <= 32'h0000;
+			wb_sel <= 4'b1111;
+			wb_data_i <= 32'h4444ffff;
+		 end
+		 WRITE_TO_SDRAM: begin
+			wb_stb <= 1'b0;
+			wb_cyc <= 1'b0;
+		 end
+		 SELECT_READ_SDRAM: begin
+			wb_cyc <= 1'b1;
+			wb_stb <= 1'b1;
+			wb_we <= 1'b0;
+			wb_addr  <= 32'h0000;
+			wb_sel <= 4'b1111;
+			data_read_from_sdram <= WB_DATA_O;
+		 end
+		 READ_FROM_SDRAM: begin
+			wb_stb <= 1'b0;
+			wb_cyc <= 1'b0;
+		 end
+		 // end新增
 		 SELECT_WRITE_FIFO: begin
 		    usb_slrd <= 1'b1;
 			 usb_slwr <= 1'b1;
@@ -309,7 +378,7 @@ always @(posedge USB_IFCLK) begin
 			 // select EP6
 			 usb_addr <= 2'b10;
 			 counter <= counter + 1'b1;
-			 usb_data <= buff[counter];
+			 usb_data <= data_read_from_sdram;
 		 end
 		 default: begin
 		    usb_slrd <= 1'b1;
