@@ -26,16 +26,16 @@ module fpga(
 	//--------------	LED ------------------------------------------------------//
 	output	[3:0]	   LED,					    //	LED [3:0]
 	//--------------  SDRAM Interface ------------------------------------------//
-//	inout	   [15:0]	SDRAM_DQ,				 //	SDRAM Data bus 16 Bits
-//	output	[12:0]	SDRAM_ADDR,				 //	SDRAM Address bus 13 Bits
-//	output	[1:0]	   SDRAM_DQM,				 //	SDRAM Data Mask 
-//	output			   SDRAM_WE_N,				 //	SDRAM Write Enable
-//	output			   SDRAM_CAS_N,			 //	SDRAM Column Address Strobe
-//	output			   SDRAM_RAS_N,			 //	SDRAM Row Address Strobe
-//	output	[1:0]	   SDRAM_BA,				 //	SDRAM Bank Address 
-//	output			   SDRAM_CLK,				 //	SDRAM Clock	
-//	output			   SDRAM_CS_N,				 //	SDRAM Chip Select
-//	output			   SDRAM_CKE,				 //	SDRAM Clock Enable
+	inout	   [15:0]	SDRAM_DQ,				 //	SDRAM Data bus 16 Bits
+	output	[12:0]	SDRAM_ADDR,				 //	SDRAM Address bus 13 Bits
+	output	[1:0]	   SDRAM_DQM,				 //	SDRAM Data Mask 
+	output			   SDRAM_WE_N,				 //	SDRAM Write Enable
+	output			   SDRAM_CAS_N,			 //	SDRAM Column Address Strobe
+	output			   SDRAM_RAS_N,			 //	SDRAM Row Address Strobe
+	output	[1:0]	   SDRAM_BA,				 //	SDRAM Bank Address 
+	output			   SDRAM_CLK,				 //	SDRAM Clock	
+	output			   SDRAM_CS_N,				 //	SDRAM Chip Select
+	output			   SDRAM_CKE,				 //	SDRAM Clock Enable
 	//-------------	USB Interface ------------------------------------------//
 	inout	   [15:0]	USB_DATA,				 //	USB Data bus 16 Bits
 	output	[1:0]	   USB_ADDR,				 //	USB Address bus 2 Bits
@@ -49,17 +49,16 @@ module fpga(
 	output			   USB_PKEND,				 //	USB Packet end
 	//output			   USB_WU2,				    //	USB Wake Up USB2
 	
-	output COUNTER,
-	output WB_RST,
-	output WB_STB,
-	output WB_WE,
-	output WB_SEL,
-	output WB_CYC,
-	output WB_ADDR,
-	output WB_DATA_I,
-	output WB_DATA_O,
-	output WB_STALL,
-	output WB_ACK,
+//	output WB_RST,
+//	output WB_STB,
+//	output WB_WE,
+//	output WB_SEL,
+//	output WB_CYC,
+//	output WB_ADDR,
+//	output WB_DATA_I,
+//	output WB_DATA_O,
+//	output WB_STALL,
+//	output WB_ACK,
 	
 	input			      USB_IFCLK				 //	USB Clock inout
 //	input			      USB_CLK_OUT,			 //	USB Clock Output
@@ -85,12 +84,17 @@ module fpga(
 localparam IDLE = 4'b0000;
 localparam SELECT_READ_FIFO = 4'b0001;
 localparam READ_FROM_USB = 4'b0010;
-/*新增*/
+
 localparam SELECT_WRITE_SDRAM = 4'b0011;
 localparam WRITE_TO_SDRAM = 4'b0100;
+localparam CLEAR_TEMP1 = 4'b1001;
 localparam SELECT_READ_SDRAM = 4'b0101;
+localparam READ_WAIT = 4'b1011;
+localparam WRITE_WAIT = 4'b1100;
 localparam READ_FROM_SDRAM = 4'b0110;
-/*新增END*/
+localparam RESET_READ = 4'b1010;
+localparam CLEAR_TEMP2 = 4'b1010;
+
 localparam SELECT_WRITE_FIFO = 4'b0111;
 localparam WRITE_TO_USB = 4'b1000;
 
@@ -104,6 +108,7 @@ wire [3:0] WB_SEL;
 wire WB_CYC;
 wire [31:0]  WB_ADDR;
 wire [31:0]  WB_DATA_I;
+wire [31:0] WB_DATA_O;
 
 reg wb_rst = 0;
 reg wb_stb = 0;
@@ -113,8 +118,11 @@ reg wb_cyc = 0;
 reg [31:0] wb_addr = 0;
 reg [31:0] wb_data_i = 0;
 
-reg[31:0] data_read_from_sdram = 32'hffff_ffff;
+reg[31:0] data_read_from_sdram [`MAXPKG - 1 : 0];
+reg [`LOGMAXPKG - 1 : 0] sdram_counter = 0;
+reg [12:0] sdram_addr_temp = 0;
 
+reg read_finish = 0;
 
 assign WB_RST = wb_rst;
 assign WB_STB = wb_stb;
@@ -123,10 +131,6 @@ assign WB_SEL = wb_sel;
 assign WB_CYC = wb_cyc;
 assign WB_ADDR = wb_addr;
 assign WB_DATA_I = wb_data_i;
-
-wire[`LOGMAXPKG - 1 : 0] COUNTER;
-assign COUNTER = counter;
-
 
 sdram #(
 .DATA_WIDTH (16)
@@ -200,12 +204,12 @@ always @(*) begin
 			      state_nxt = IDLE;
 			  end
 			  $display("IDLE\n");
-			  led = 4'b1111;
+			  // led = IDLE;
 		 end
 		 SELECT_READ_FIFO: begin
 		    state_nxt = READ_FROM_USB;
 			 $display("SELECT_READ_FIFO\n");
-			 led = SELECT_READ_FIFO;
+			 // led = SELECT_READ_FIFO;
 		 end
 		 READ_FROM_USB: begin
 		    if((counter == `MAXPKG - 1) || (USB_FLAGA == 1'b0))begin
@@ -215,40 +219,62 @@ always @(*) begin
 			     state_nxt = READ_FROM_USB;
 			 end
 			 $display("READ_FROM_USB\n");
-			 led = READ_FROM_USB;
+			 // led = READ_FROM_USB;
 		 end
 		 
 		 // 新增
 		 SELECT_WRITE_SDRAM: begin
+			state_nxt = WRITE_WAIT;
+			$display("SELECT_WRITE_SDRAM\n");
+			// led = SELECT_WRITE_SDRAM;
+		 end
+		 WRITE_WAIT: begin
+			if (WB_ACK == 1'b1) begin
 				state_nxt = WRITE_TO_SDRAM;
-				$display("SELECT_WRITE_SDRAM\n");
-				led = SELECT_WRITE_SDRAM;
+			end
+			else begin
+				state_nxt = WRITE_WAIT;
+			end
 		 end
 		 WRITE_TO_SDRAM: begin
-			if (WB_ACK == 1'b1) begin
-				state_nxt = SELECT_READ_SDRAM;
-			end
-		   else begin
-				state_nxt = WRITE_TO_SDRAM;
-			end
+		 
+			state_nxt = SELECT_READ_SDRAM;
+//			if (sdram_counter == number) begin
+//				state_nxt = CLEAR_TEMP1;
+//			end
+//			else begin
+//				state_nxt = SELECT_WRITE_SDRAM;
+//			end
 			$display("WRITE_TO_SDRAM\n");
-			led = WRITE_TO_SDRAM;
+			// led = WRITE_TO_SDRAM;
 		 end
 		 SELECT_READ_SDRAM: begin
-		    state_nxt = READ_FROM_SDRAM;
+			 state_nxt = READ_WAIT;
 			 $display("SELECT_READ_SDRAM\n");
-			 led = SELECT_READ_SDRAM;
+			 // led = SELECT_READ_SDRAM;
 		 end
-		 READ_FROM_SDRAM: begin
+		 
+		 READ_WAIT: begin
 			if (WB_ACK == 1'b1) begin
+				state_nxt = READ_FROM_SDRAM;
+			end
+			else begin
+				state_nxt = READ_WAIT;
+			end
+			$display("READ_WAIT\n");
+		 end
+		 
+		 READ_FROM_SDRAM: begin
+			if (read_finish == 1) begin
 				state_nxt = SELECT_WRITE_FIFO;
 			end
-		   else begin
+			else begin
 				state_nxt = READ_FROM_SDRAM;
 			end
 			$display("READ_FROM_SDRAM\n");
-			led = READ_FROM_SDRAM;
+			// led = READ_FROM_SDRAM;
 		 end
+
 		 // end新增
 		 
 		 SELECT_WRITE_FIFO: begin
@@ -259,7 +285,7 @@ always @(*) begin
 			      state_nxt = SELECT_WRITE_FIFO;
 			  end
 			  $display("SELECT_WRITE_FIFO\n");
-			  led = SELECT_WRITE_FIFO;
+			  // led = SELECT_WRITE_FIFO;
 		 end
 		 WRITE_TO_USB: begin
 		    if ((counter >= number) || (USB_FLAGD == 1'b0)) begin
@@ -269,12 +295,12 @@ always @(*) begin
 			     state_nxt = WRITE_TO_USB;
 			 end
 			 $display("WRITE_TO_USB\n");
-			 led = WRITE_TO_USB;
+			 // led = WRITE_TO_USB;
 		 end
 		 default: begin
 		     state_nxt = IDLE;
 			  $display("default\n");
-			  led = 4'b1111;
+			  // led = 4'b1111;
 		 end
 	endcase
 end
@@ -290,6 +316,7 @@ always @(posedge USB_IFCLK) begin
 			 counter <= 0;
 			 number <= 0;
 			 usb_data <= 0;
+			 sdram_counter <= 0;
 		 end
 		 SELECT_READ_FIFO: begin
 		    usb_slrd <= 1'b1;
@@ -300,6 +327,7 @@ always @(posedge USB_IFCLK) begin
 			 // select EP2
 			 usb_addr <= 2'b00;
 			 counter <= 0;
+			 sdram_counter <= 0;
 			 number <= 0;
 			 usb_data <= 0;
 		 end
@@ -327,9 +355,13 @@ always @(posedge USB_IFCLK) begin
 			wb_cyc <= 1'b1;
 			wb_stb <= 1'b1;
 			wb_we <= 1'b1;
-			wb_addr  <= 32'h0000;
+			wb_addr  <= 0;
 			wb_sel <= 4'b1111;
-			wb_data_i <= 32'h4444ffff;
+			wb_data_i <= buff[0];
+//			led[0]<=WB_ACK;
+//			led[3:1]<=buff[0][2:0];
+		 end
+		 WRITE_WAIT: begin
 		 end
 		 WRITE_TO_SDRAM: begin
 			wb_stb <= 1'b0;
@@ -339,13 +371,19 @@ always @(posedge USB_IFCLK) begin
 			wb_cyc <= 1'b1;
 			wb_stb <= 1'b1;
 			wb_we <= 1'b0;
-			wb_addr  <= 32'h0000;
 			wb_sel <= 4'b1111;
-			data_read_from_sdram <= WB_DATA_O;
+			wb_addr  <= 0;
+		 end
+		 READ_WAIT: begin
+		 //led<=WB_DATA_O;
+		 led<=SDRAM_ADDR;
 		 end
 		 READ_FROM_SDRAM: begin
-			wb_stb <= 1'b0;
-			wb_cyc <= 1'b0;
+			//led<=WB_ACK;
+			data_read_from_sdram[0] <= WB_DATA_O;
+			//led<=WB_DATA_O[3:0];
+			//led<=4'b1010;
+			read_finish <= 1;
 		 end
 		 // end新增
 		 SELECT_WRITE_FIFO: begin
@@ -370,7 +408,7 @@ always @(posedge USB_IFCLK) begin
 			 usb_sloe <= 1'b1;
 			 // If EP6 is full or written completely, submit data
 			 if((USB_FLAGD == 1'b0) || (counter == number)) begin
-			     usb_pkend <= 1'b0; 
+			     usb_pkend <= 1'b0;   
 			 end
 			 else begin
 			     usb_pkend <= 1'b1;
@@ -378,7 +416,7 @@ always @(posedge USB_IFCLK) begin
 			 // select EP6
 			 usb_addr <= 2'b10;
 			 counter <= counter + 1'b1;
-			 usb_data <= data_read_from_sdram;
+			 usb_data <= data_read_from_sdram[0];
 		 end
 		 default: begin
 		    usb_slrd <= 1'b1;

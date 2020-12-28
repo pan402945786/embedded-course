@@ -278,7 +278,9 @@ begin
     // STATE_WRITE1
     //-----------------------------------------
     STATE_WRITE1 :
+	 
     begin
+	 $display("STATE_WRITE1\n");
         next_state_r = STATE_IDLE;
 
         // Another pending write request (with no refresh pending)
@@ -293,7 +295,9 @@ begin
     // STATE_PRECHARGE
     //-----------------------------------------
     STATE_PRECHARGE :
+	 
     begin
+	 $display("STATE_PRECHARGE\n");
         // Closing row to perform refresh
         if (target_state_r == STATE_REFRESH)
             next_state_r = STATE_REFRESH;
@@ -305,18 +309,23 @@ begin
     // STATE_REFRESH
     //-----------------------------------------
     STATE_REFRESH :
+	 
     begin
+	 $display("STATE_REFRESH\n");
         next_state_r = STATE_IDLE;
     end
     //-----------------------------------------
     // STATE_DELAY
     //-----------------------------------------
     STATE_DELAY :
+	 
     begin
+	 $display("STATE_DELAY\n");
         next_state_r = delay_state_q;
     end
-    default:
-        ;
+    default: begin
+		$display("default\n");
+	 end
    endcase
 end
 
