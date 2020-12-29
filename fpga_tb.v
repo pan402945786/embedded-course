@@ -39,7 +39,11 @@ module fpga_tb;
 	wire USB_SLOE;
 	wire USB_PKEND;
 	
-	wire[`LOGMAXPKG - 1 : 0] COUNTER;
+	wire [15: 0] BUFF0;
+	wire [15: 0] BUFF1;
+	wire [15: 0] BUFF2;
+	wire [15: 0] BUFF3;
+	wire [15: 0] BUFF4;
 	wire WB_RST;
 	wire WB_STB;
 	wire WB_WE;
@@ -50,6 +54,21 @@ module fpga_tb;
 	wire [31:0]  WB_DATA_O;
 	wire WB_STALL;
 	wire WB_ACK;
+	
+	wire [3:0] STATE;
+	
+	
+	wire [15:0]SDRAM_DQ;
+	wire [12:0]SDRAM_ADDR;
+	wire [1:0]SDRAM_DQM;
+	wire SDRAM_WE_N;
+	wire SDRAM_CAS_N;
+	wire SDRAM_RAS_N;
+	wire [1:0]SDRAM_BA;
+	wire SDRAM_CLK;
+	wire SDRAM_CS_N;
+	wire SDRAM_CKE;
+	
 
 	// Bidirs
 	wire [15:0] USB_DATA;
@@ -62,12 +81,26 @@ module fpga_tb;
 		.USB_SLRD(USB_SLRD), 
 		.USB_SLWR(USB_SLWR), 
 		.USB_SLOE(USB_SLOE), 
-		.USB_FLAGA(USB_FLAGA), 
-		.USB_FLAGB(USB_FLAGB), 
-		.USB_FLAGC(USB_FLAGC), 
+		.USB_FLAGA(USB_FLAGA),  
 		.USB_FLAGD(USB_FLAGD), 
 		.USB_PKEND(USB_PKEND), 
-		.COUNTER(COUNTER),
+		.BUFF0(BUFF0),
+		.BUFF1(BUFF1),
+		.BUFF2(BUFF2),
+		.BUFF3(BUFF3),
+		.BUFF4(BUFF4),
+		.STATE(STATE),
+		.SDRAM_DQ (SDRAM_DQ),
+		.SDRAM_ADDR (SDRAM_ADDR),
+		.SDRAM_DQM (SDRAM_DQM),
+		.SDRAM_WE_N (SDRAM_WE_N),
+		.SDRAM_CAS_N (SDRAM_CAS_N),
+		.SDRAM_RAS_N (SDRAM_RAS_N),
+		.SDRAM_BA (SDRAM_BA),
+		.SDRAM_CLK (SDRAM_CLK),
+		.SDRAM_CS_N (SDRAM_CS_N),
+		.SDRAM_CKE (SDRAM_CKE),
+
 		.WB_RST(WB_RST),
 		.WB_STB(WB_STB),
 		.WB_WE(WB_WE),
@@ -96,7 +129,7 @@ module fpga_tb;
 		out_fifo_addr = 0;
 		
 		//for (i = 0; i < 256; i = i + 1) begin
-		for (i = 0; i < 20; i = i + 1) begin
+		for (i = 0; i < 5; i = i + 1) begin
 			out_fifo[i] = i;
 		end
 		// Wait 100 ns for global reset to finish
@@ -110,7 +143,7 @@ module fpga_tb;
 
 	always @(posedge USB_IFCLK) 
 	begin
-		if (out_fifo_addr == 9'b00000_0001) 
+		if (out_fifo_addr >= 9'b00000_0100) 
 			USB_FLAGA <= 0;
 		else
 			USB_FLAGA <= 1;

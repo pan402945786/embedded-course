@@ -19,23 +19,23 @@
 //
 //////////////////////////////////////////////////////////////////////////////////
 `include "register.v"
-
+`define  DELAY            25'd24000000
 module fpga(
 	//--------------	Clock Input ----------------------------------------------//
 //	input			      CLOCK_48,				 //	24 MHz
 	//--------------	LED ------------------------------------------------------//
 	output	[3:0]	   LED,					    //	LED [3:0]
 	//--------------  SDRAM Interface ------------------------------------------//
-	inout	   [15:0]	SDRAM_DQ,				 //	SDRAM Data bus 16 Bits
-	output	[12:0]	SDRAM_ADDR,				 //	SDRAM Address bus 13 Bits
-	output	[1:0]	   SDRAM_DQM,				 //	SDRAM Data Mask 
-	output			   SDRAM_WE_N,				 //	SDRAM Write Enable
-	output			   SDRAM_CAS_N,			 //	SDRAM Column Address Strobe
-	output			   SDRAM_RAS_N,			 //	SDRAM Row Address Strobe
-	output	[1:0]	   SDRAM_BA,				 //	SDRAM Bank Address 
-	output			   SDRAM_CLK,				 //	SDRAM Clock	
-	output			   SDRAM_CS_N,				 //	SDRAM Chip Select
-	output			   SDRAM_CKE,				 //	SDRAM Clock Enable
+//	inout	   [15:0]	SDRAM_DQ,				 //	SDRAM Data bus 16 Bits
+//	output	[12:0]	SDRAM_ADDR,				 //	SDRAM Address bus 13 Bits
+//	output	[1:0]	   SDRAM_DQM,				 //	SDRAM Data Mask 
+//	output			   SDRAM_WE_N,				 //	SDRAM Write Enable
+//	output			   SDRAM_CAS_N,			 //	SDRAM Column Address Strobe
+//	output			   SDRAM_RAS_N,			 //	SDRAM Row Address Strobe
+//	output	[1:0]	   SDRAM_BA,				 //	SDRAM Bank Address 
+//	output			   SDRAM_CLK,				 //	SDRAM Clock	
+//	output			   SDRAM_CS_N,				 //	SDRAM Chip Select
+//	output			   SDRAM_CKE,				 //	SDRAM Clock Enable
 	//-------------	USB Interface ------------------------------------------//
 	inout	   [15:0]	USB_DATA,				 //	USB Data bus 16 Bits
 	output	[1:0]	   USB_ADDR,				 //	USB Address bus 2 Bits
@@ -43,22 +43,37 @@ module fpga(
 	output			   USB_SLWR,				 //	USB Write Enable
 	output			   USB_SLOE,				 //	USB Output Enable
 	input			      USB_FLAGA,				 //	USB Flag
-	input			      USB_FLAGB,				 //	USB Flag
-	input			      USB_FLAGC,				 //	USB Flag
 	input			      USB_FLAGD,				 //	USB Flag
 	output			   USB_PKEND,				 //	USB Packet end
 	//output			   USB_WU2,				    //	USB Wake Up USB2
 	
-//	output WB_RST,
-//	output WB_STB,
-//	output WB_WE,
-//	output WB_SEL,
-//	output WB_CYC,
-//	output WB_ADDR,
-//	output WB_DATA_I,
-//	output WB_DATA_O,
-//	output WB_STALL,
-//	output WB_ACK,
+	output WB_RST,
+	output WB_STB,
+	output WB_WE,
+	output WB_SEL,
+	output WB_CYC,
+	output WB_ADDR,
+	output WB_DATA_I,
+	output WB_DATA_O,
+	output WB_STALL,
+	output WB_ACK,
+	
+	output SDRAM_DQ,
+	output SDRAM_ADDR,
+	output SDRAM_DQM,
+	output SDRAM_WE_N,
+	output SDRAM_CAS_N,
+	output SDRAM_RAS_N,
+	output SDRAM_BA,
+	output SDRAM_CLK,
+	output SDRAM_CS_N,
+	output SDRAM_CKE,
+	output STATE,
+	output BUFF0,
+	output BUFF1,
+	output BUFF2,
+	output BUFF3,
+	output BUFF4,
 	
 	input			      USB_IFCLK				 //	USB Clock inout
 //	input			      USB_CLK_OUT,			 //	USB Clock Output
@@ -98,6 +113,8 @@ localparam CLEAR_TEMP2 = 4'b1010;
 localparam SELECT_WRITE_FIFO = 4'b0111;
 localparam WRITE_TO_USB = 4'b1000;
 
+localparam RESET_WISHBONE = 4'b1101;
+
 
 localparam DATA_WIDTH = 16;
 
@@ -132,6 +149,55 @@ assign WB_CYC = wb_cyc;
 assign WB_ADDR = wb_addr;
 assign WB_DATA_I = wb_data_i;
 
+wire [15:0]SDRAM_DQ;
+wire [12:0]SDRAM_ADDR;
+wire [1:0]SDRAM_DQM;
+wire SDRAM_WE_N;
+wire SDRAM_CAS_N;
+wire SDRAM_RAS_N;
+wire [1:0]SDRAM_BA;
+wire SDRAM_CLK;
+wire SDRAM_CS_N;
+wire SDRAM_CKE;
+
+reg [3 : 0]              state = 0;
+reg [3 : 0]              state_nxt = 0;
+reg [DATA_WIDTH - 1 : 0] buff [`MAXPKG - 1 : 0];
+reg [`LOGMAXPKG - 1 : 0] counter = 0;
+reg [`LOGMAXPKG - 1 : 0] number = 0;
+reg                      usb_slrd = 1'b1;
+reg                      usb_slwr = 1'b1;
+reg                      usb_sloe = 1'b1;
+reg                      usb_pkend = 1'b1;
+reg [1 : 0]              usb_addr = 2'b00;
+reg [DATA_WIDTH - 1 :  0]usb_data = 0;
+
+reg [3:0] led = 4'b0;
+reg [24 :0] delay_counter = 0;
+
+assign USB_ADDR = usb_addr;
+assign USB_SLRD = usb_slrd;
+assign USB_SLWR = usb_slwr;
+assign USB_SLOE = usb_sloe;
+assign USB_PKEND= usb_pkend;
+assign USB_DATA= (usb_sloe == 1'b1)? usb_data : 'bz;
+assign LED = led;
+
+
+wire[3:0] STATE;
+assign STATE = state;
+
+wire[15:0] BUFF0;
+wire[15:0] BUFF1;
+wire[15:0] BUFF2;
+wire[15:0] BUFF3;
+wire[15:0] BUFF4;
+assign BUFF0 = buff[0];
+assign BUFF1 = buff[1];
+assign BUFF2 = buff[2];
+assign BUFF3 = buff[3];
+assign BUFF4 = buff[4];
+
 sdram #(
 .DATA_WIDTH (16)
 ) u_sdram (
@@ -159,32 +225,31 @@ sdram #(
 	.sdram_cke_o   (SDRAM_CKE)
 );
 
+//IS42VM16400K r_sdram (
+//   .dq (SDRAM_DQ),
+//	.addr  (SDRAM_ADDR),
+//	.dqm   (SDRAM_DQM),
+//   .web    (SDRAM_WE_N),
+//	.casb   (SDRAM_CAS_N),
+//	.rasb   (SDRAM_RAS_N),
+//	.ba    (SDRAM_BA),
+//	.clk   (SDRAM_CLK),
+//	.csb    (SDRAM_CS_N),
+//	.cke   (SDRAM_CKE)
+//);
 
-reg [3 : 0]              state = 0;
-reg [3 : 0]              state_nxt = 0;
-reg [DATA_WIDTH - 1 : 0] buff [`MAXPKG - 1 : 0];
-reg [`LOGMAXPKG - 1 : 0] counter = 0;
-reg [`LOGMAXPKG - 1 : 0] number = 0;
-reg                      usb_slrd = 1'b1;
-reg                      usb_slwr = 1'b1;
-reg                      usb_sloe = 1'b1;
-reg                      usb_pkend = 1'b1;
-reg [1 : 0]              usb_addr = 2'b00;
-reg [DATA_WIDTH - 1 :  0]usb_data = 0;
-
-reg [3:0] led = 4'b0;
-
-assign USB_ADDR = usb_addr;
-assign USB_SLRD = usb_slrd;
-assign USB_SLWR = usb_slwr;
-assign USB_SLOE = usb_sloe;
-assign USB_PKEND= usb_pkend;
-assign USB_DATA= (usb_sloe == 1'b1)? usb_data : 'bz;
-//assign LED[0] = USB_FLAGA;
-//assign LED[1] = USB_FLAGB;
-//assign LED[2] = USB_FLAGC;
-//assign LED[3] = USB_FLAGD;
-assign LED = led;
+MT48LC8M16A2 r_sdram (
+   .dq (SDRAM_DQ),
+	.addr  (SDRAM_ADDR),
+	.dqm   (SDRAM_DQM),
+   .web    (SDRAM_WE_N),
+	.casb   (SDRAM_CAS_N),
+	.rasb   (SDRAM_RAS_N),
+	.ba    (SDRAM_BA),
+	.clk   (SDRAM_CLK),
+	.csb    (SDRAM_CS_N),
+	.cke   (SDRAM_CKE)
+);
 
 /*
 状态机
@@ -213,7 +278,7 @@ always @(*) begin
 		 end
 		 READ_FROM_USB: begin
 		    if((counter == `MAXPKG - 1) || (USB_FLAGA == 1'b0))begin
-			     state_nxt = SELECT_WRITE_SDRAM;
+			     state_nxt = RESET_WISHBONE;
           end
           else begin
 			     state_nxt = READ_FROM_USB;
@@ -223,12 +288,19 @@ always @(*) begin
 		 end
 		 
 		 // 新增
+		 RESET_WISHBONE: begin
+			#30;
+			state_nxt = SELECT_WRITE_SDRAM;
+			$display("RESET_WISHBONE\n");
+		 end
+		 
 		 SELECT_WRITE_SDRAM: begin
 			state_nxt = WRITE_WAIT;
 			$display("SELECT_WRITE_SDRAM\n");
 			// led = SELECT_WRITE_SDRAM;
 		 end
 		 WRITE_WAIT: begin
+		 $display("WRITE_WAIT\n");
 			if (WB_ACK == 1'b1) begin
 				state_nxt = WRITE_TO_SDRAM;
 			end
@@ -237,7 +309,13 @@ always @(*) begin
 			end
 		 end
 		 WRITE_TO_SDRAM: begin
-		 
+//		 	if (delay_counter == `DELAY) begin
+//				 delay_counter <= 0;
+//			end
+//			else begin
+//				delay_counter <= delay_counter + 1'b1;
+//			end
+			#300;
 			state_nxt = SELECT_READ_SDRAM;
 //			if (sdram_counter == number) begin
 //				state_nxt = CLEAR_TEMP1;
@@ -351,13 +429,20 @@ always @(posedge USB_IFCLK) begin
 			 usb_data <= 0;
 		 end
 		 // 新增
+		 RESET_WISHBONE: begin
+			//wb_rst <= 1'b1;
+			#10;
+			//wb_rst <= 1'b0;
+		 end
+		 
 		 SELECT_WRITE_SDRAM: begin
+			//wb_rst <= 1'b0;
 			wb_cyc <= 1'b1;
 			wb_stb <= 1'b1;
 			wb_we <= 1'b1;
 			wb_addr  <= 0;
 			wb_sel <= 4'b1111;
-			wb_data_i <= buff[0];
+			wb_data_i <= buff[3];
 //			led[0]<=WB_ACK;
 //			led[3:1]<=buff[0][2:0];
 		 end
@@ -372,11 +457,10 @@ always @(posedge USB_IFCLK) begin
 			wb_stb <= 1'b1;
 			wb_we <= 1'b0;
 			wb_sel <= 4'b1111;
-			wb_addr  <= 0;
+			wb_addr <= 0;
 		 end
 		 READ_WAIT: begin
-		 //led<=WB_DATA_O;
-		 led<=SDRAM_ADDR;
+			led<=WB_DATA_O[3:0];
 		 end
 		 READ_FROM_SDRAM: begin
 			//led<=WB_ACK;

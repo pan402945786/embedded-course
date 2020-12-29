@@ -76,7 +76,7 @@ localparam    SDRAM_BANKS           = 2 ** SDRAM_BANK_W;
 localparam    SDRAM_ROW_W           = SDRAM_ADDR_W - SDRAM_COL_W - SDRAM_BANK_W;
 localparam    SDRAM_REFRESH_CNT     = 2 ** SDRAM_ROW_W;
 localparam    SDRAM_START_DELAY     = 100000 / (1000 / SDRAM_MHZ); // 100uS
-localparam    SDRAM_REFRESH_CYCLES  = (64000*SDRAM_MHZ) / SDRAM_REFRESH_CNT-1;
+localparam    SDRAM_REFRESH_CYCLES  = (66000*SDRAM_MHZ) / SDRAM_REFRESH_CNT-1;
 localparam    SDRAM_READ_LATENCY    = 2;
 localparam    SDRAM_TARGET          = "XILINX";
 
@@ -119,7 +119,7 @@ localparam CYCLE_TIME_NS     = 1000 / SDRAM_MHZ;
 // SDRAM timing
 localparam SDRAM_TRCD_CYCLES = (20 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
 localparam SDRAM_TRP_CYCLES  = (20 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
-localparam SDRAM_TRFC_CYCLES = (60 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
+localparam SDRAM_TRFC_CYCLES = (66 + (CYCLE_TIME_NS-1)) / CYCLE_TIME_NS;
 
 //-----------------------------------------------------------------
 // Registers / Wires
@@ -177,7 +177,7 @@ begin
     //-----------------------------------------
     STATE_INIT :
     begin
-			$display("STATE_INIT\n");
+			$display("SDRAM_STATE_INIT\n");
         if (refresh_q)
             next_state_r = STATE_IDLE;
     end
@@ -189,7 +189,7 @@ begin
         // Pending refresh
         // Note: tRAS (open row time) cannot be exceeded due to periodic
         //        auto refreshes.
-		  $display("STATE_IDLE\n");
+		  $display("SDRAM_STATE_IDLE\n");
         if (refresh_q)
         begin
             // Close open rows, then refresh
@@ -238,7 +238,7 @@ begin
     //-----------------------------------------
     STATE_ACTIVATE :
     begin
-	 $display("STATE_ACTIVATE\n");
+	 $display("SDRAM_STATE_ACTIVATE\n");
         // Proceed to read or write state
         next_state_r = target_state_r;
     end
@@ -247,7 +247,7 @@ begin
     //-----------------------------------------
     STATE_READ :
     begin
-	 $display("STATE_READ\n");
+	 $display("SDRAM_STATE_READ\n");
         next_state_r = STATE_READ_WAIT;
     end
     //-----------------------------------------
@@ -255,7 +255,7 @@ begin
     //-----------------------------------------
     STATE_READ_WAIT :
     begin
-	 $display("STATE_READ_WAIT\n");
+	 $display("SDRAM_STATE_READ_WAIT\n");
         next_state_r = STATE_IDLE;
 
         // Another pending read request (with no refresh pending)
@@ -271,7 +271,7 @@ begin
     //-----------------------------------------
     STATE_WRITE0 :
     begin
-	 $display("STATE_WRITE0\n");
+	 $display("SDRAM_STATE_WRITE0\n");
         next_state_r = STATE_WRITE1;
     end
     //-----------------------------------------
@@ -280,7 +280,7 @@ begin
     STATE_WRITE1 :
 	 
     begin
-	 $display("STATE_WRITE1\n");
+	 $display("SDRAM_STATE_WRITE1\n");
         next_state_r = STATE_IDLE;
 
         // Another pending write request (with no refresh pending)
@@ -297,7 +297,7 @@ begin
     STATE_PRECHARGE :
 	 
     begin
-	 $display("STATE_PRECHARGE\n");
+	 $display("SDRAM_STATE_PRECHARGE\n");
         // Closing row to perform refresh
         if (target_state_r == STATE_REFRESH)
             next_state_r = STATE_REFRESH;
@@ -311,7 +311,7 @@ begin
     STATE_REFRESH :
 	 
     begin
-	 $display("STATE_REFRESH\n");
+	 $display("SDRAM_STATE_REFRESH\n");
         next_state_r = STATE_IDLE;
     end
     //-----------------------------------------
@@ -320,7 +320,7 @@ begin
     STATE_DELAY :
 	 
     begin
-	 $display("STATE_DELAY\n");
+	 $display("SDRAM_STATE_DELAY\n");
         next_state_r = delay_state_q;
     end
     default: begin
