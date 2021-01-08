@@ -26,7 +26,7 @@
 *                IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR
 *                A PARTICULAR PURPOSE, OR AGAINST INFRINGEMENT.
 *
-*                Copyright ï¿½ 1998 Micron Semiconductor Products, Inc.
+*                Copyright ï¿1998 Micron Semiconductor Products, Inc.
 *                All rights researved
 *
 * Rev   Author          Phone         Date        Changes
@@ -158,7 +158,7 @@ module MT48LC8M16A2 (dq, addr, ba, clk, cke, csb, rasb, casb, web, dqm);
     time      RP_chk0, RP_chk1, RP_chk2, RP_chk3;
  
     initial begin
-       Debug = 1'b0;
+       Debug = 1'b1;
  
         Dq_reg = {data_bits{1'bz}};
         {Data_in_enable, Data_out_enable} = 0;

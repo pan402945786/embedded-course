@@ -64,7 +64,9 @@ parameter DATA_WIDTH = 16
     output [1:0]    sdram_dqm_o,
     output [12:0]   sdram_addr_o,
     output [1:0]    sdram_ba_o,
-    inout [15:0]    sdram_data_io
+    inout [15:0]    sdram_data_io,
+	 output SDRAM_STATE,
+	 output SDRAM_CMD
 );
 
 localparam    SDRAM_MHZ             = 50;
@@ -157,6 +159,12 @@ reg  [STATE_W-1:0]     next_state_r = 0;
 reg  [STATE_W-1:0]     target_state_r = 0;
 reg  [STATE_W-1:0]     target_state_q = 0;
 reg  [STATE_W-1:0]     delay_state_q = 0;
+
+wire[STATE_W-1:0] SDRAM_STATE;
+assign SDRAM_STATE = state_q;
+
+wire [CMD_W-1:0] SDRAM_CMD;
+assign SDRAM_CMD = command_q;
 
 // Address bits
 wire [SDRAM_ROW_W-1:0]  addr_col_w  = {{(SDRAM_ROW_W-SDRAM_COL_W){1'b0}}, addr_i[SDRAM_COL_W:2], 1'b0};
@@ -506,6 +514,7 @@ begin
         addr_q       <= {SDRAM_ROW_W{1'b0}};
         bank_q       <= {SDRAM_BANK_W{1'b0}};
         data_rd_en_q <= 1'b1;
+		  cke_q <= 1'bz;
     end
     //-----------------------------------------
     // STATE_INIT
@@ -553,7 +562,8 @@ begin
         command_q     <= CMD_ACTIVE;
         addr_q        <= addr_row_w;
         bank_q        <= addr_bank_w;
-
+		  
+		  
         active_row_q[addr_bank_w]  <= addr_row_w;
         row_open_q[addr_bank_w]    <= 1'b1;
     end

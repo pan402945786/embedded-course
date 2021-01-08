@@ -74,7 +74,8 @@ module fpga(
 	output BUFF2,
 	output BUFF3,
 	output BUFF4,
-	
+	output SDRAM_STATE,
+	output SDRAM_CMD,
 	input			      USB_IFCLK				 //	USB Clock inout
 //	input			      USB_CLK_OUT,			 //	USB Clock Output
 //	input	   [1:0]	   USB_INT,				    //   USB Interrupt
@@ -198,6 +199,9 @@ assign BUFF2 = buff[2];
 assign BUFF3 = buff[3];
 assign BUFF4 = buff[4];
 
+wire[3:0] SDRAM_STATE;
+wire [3:0] SDRAM_CMD;
+
 sdram #(
 .DATA_WIDTH (16)
 ) u_sdram (
@@ -222,7 +226,9 @@ sdram #(
 	.sdram_ba_o    (SDRAM_BA),
 	.sdram_clk_o   (SDRAM_CLK),
 	.sdram_cs_o    (SDRAM_CS_N),
-	.sdram_cke_o   (SDRAM_CKE)
+	.sdram_cke_o   (SDRAM_CKE),
+	.SDRAM_STATE (SDRAM_STATE),
+	.SDRAM_CMD (SDRAM_CMD)
 );
 
 //IS42VM16400K r_sdram (
@@ -289,7 +295,7 @@ always @(*) begin
 		 
 		 // 新增
 		 RESET_WISHBONE: begin
-			#30;
+//			#50;
 			state_nxt = SELECT_WRITE_SDRAM;
 			$display("RESET_WISHBONE\n");
 		 end
@@ -430,9 +436,9 @@ always @(posedge USB_IFCLK) begin
 		 end
 		 // 新增
 		 RESET_WISHBONE: begin
-			//wb_rst <= 1'b1;
-			#10;
-			//wb_rst <= 1'b0;
+//			wb_rst <= 1'b1;
+//			#50;
+//			wb_rst <= 1'b0;
 		 end
 		 
 		 SELECT_WRITE_SDRAM: begin

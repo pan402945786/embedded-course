@@ -56,7 +56,8 @@ module fpga_tb;
 	wire WB_ACK;
 	
 	wire [3:0] STATE;
-	
+	wire [3:0] SDRAM_STATE;
+	wire [3:0] SDRAM_CMD;
 	
 	wire [15:0]SDRAM_DQ;
 	wire [12:0]SDRAM_ADDR;
@@ -100,7 +101,8 @@ module fpga_tb;
 		.SDRAM_CLK (SDRAM_CLK),
 		.SDRAM_CS_N (SDRAM_CS_N),
 		.SDRAM_CKE (SDRAM_CKE),
-
+		.SDRAM_STATE (SDRAM_STATE),
+		.SDRAM_CMD (SDRAM_CMD),
 		.WB_RST(WB_RST),
 		.WB_STB(WB_STB),
 		.WB_WE(WB_WE),
