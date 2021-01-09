@@ -69,13 +69,10 @@ module fpga(
 	output SDRAM_CS_N,
 	output SDRAM_CKE,
 	output STATE,
-	output BUFF0,
-	output BUFF1,
-	output BUFF2,
-	output BUFF3,
-	output BUFF4,
 	output SDRAM_STATE,
 	output SDRAM_CMD,
+	output OUTPUT_SDRAM_CLK,
+	output CYCLE_COUNT,
 	input			      USB_IFCLK				 //	USB Clock inout
 //	input			      USB_CLK_OUT,			 //	USB Clock Output
 //	input	   [1:0]	   USB_INT,				    //   USB Interrupt
@@ -84,23 +81,10 @@ module fpga(
 //	inout	   [33:0]	GPIOB					    //   GPIOB, Can Be Used as Differential Pairs
 	);
 
-//reg [24 :0] counter = 0;
-//reg updown = 0;
-//
-//always @(posedge CLOCK_48) begin
-//   if (counter == `DELAY) begin
-//	    counter <= 0;
-//		 updown <= ~updown;
-//	end
-//	else begin
-//	   counter <= counter + 1'b1;
-//	end
-//end
 
 localparam IDLE = 4'b0000;
 localparam SELECT_READ_FIFO = 4'b0001;
 localparam READ_FROM_USB = 4'b0010;
-
 localparam SELECT_WRITE_SDRAM = 4'b0011;
 localparam WRITE_TO_SDRAM = 4'b0100;
 localparam CLEAR_TEMP1 = 4'b1001;
@@ -110,12 +94,9 @@ localparam WRITE_WAIT = 4'b1100;
 localparam READ_FROM_SDRAM = 4'b0110;
 localparam RESET_READ = 4'b1010;
 localparam CLEAR_TEMP2 = 4'b1010;
-
 localparam SELECT_WRITE_FIFO = 4'b0111;
 localparam WRITE_TO_USB = 4'b1000;
-
 localparam RESET_WISHBONE = 4'b1101;
-
 
 localparam DATA_WIDTH = 16;
 
@@ -184,67 +165,90 @@ assign USB_PKEND= usb_pkend;
 assign USB_DATA= (usb_sloe == 1'b1)? usb_data : 'bz;
 assign LED = led;
 
-
 wire[3:0] STATE;
 assign STATE = state;
 
-wire[15:0] BUFF0;
-wire[15:0] BUFF1;
-wire[15:0] BUFF2;
-wire[15:0] BUFF3;
-wire[15:0] BUFF4;
-assign BUFF0 = buff[0];
-assign BUFF1 = buff[1];
-assign BUFF2 = buff[2];
-assign BUFF3 = buff[3];
-assign BUFF4 = buff[4];
-
 wire[3:0] SDRAM_STATE;
-wire [3:0] SDRAM_CMD;
+wire [4:0] SDRAM_CMD;
+wire OUTPUT_SDRAM_CLK;
+wire [31:0]CYCLE_COUNT;
 
-sdram #(
-.DATA_WIDTH (16)
-) u_sdram (
-   .clk_i (USB_IFCLK),
-   .rst_i(WB_RST),
-	.stb_i (WB_STB),
-	.we_i (WB_WE),
-	.sel_i (WB_SEL),
-   .cyc_i(WB_CYC),
-	.addr_i (WB_ADDR),
-	.data_i (WB_DATA_I),
-	.data_o (WB_DATA_O),
-   .stall_o(WB_STALL),
-	.ack_o (WB_ACK),
+wire wb_cti_wire;
+wire wb_bte_wire;
+wire dq_oe_wire;
+wire [15:0]dq_in;
+reg [15:0] data_to_sdram;
+assign dq_in = data_to_sdram;
+wire sdram_rst_wire;
+reg sdram_rst_reg = 1'b0;
+assign sdram_rst_wire = sdram_rst_reg;
 
-   .sdram_data_io (SDRAM_DQ),
-	.sdram_addr_o  (SDRAM_ADDR),
-	.sdram_dqm_o   (SDRAM_DQM),
-   .sdram_we_o    (SDRAM_WE_N),
-	.sdram_cas_o   (SDRAM_CAS_N),
-	.sdram_ras_o   (SDRAM_RAS_N),
-	.sdram_ba_o    (SDRAM_BA),
-	.sdram_clk_o   (SDRAM_CLK),
-	.sdram_cs_o    (SDRAM_CS_N),
-	.sdram_cke_o   (SDRAM_CKE),
-	.SDRAM_STATE (SDRAM_STATE),
-	.SDRAM_CMD (SDRAM_CMD)
+wb_sdram_ctrl 
+//#(
+//
+//) 
+wb_sdram_ctrl (
+	.sdram_rst(sdram_rst_wire),
+	.sdram_clk(USB_IFCLK),
+	.dq_i (dq_in_wire),
+   .dq_o (SDRAM_DQ),
+	.a_pad_o  (SDRAM_ADDR),
+	.dqm_pad_o   (SDRAM_DQM),
+   .we_pad_o    (SDRAM_WE_N),
+	.cas_pad_o   (SDRAM_CAS_N),
+	.ras_pad_o   (SDRAM_RAS_N),
+	.ba_pad_o    (SDRAM_BA),
+	.dq_oe   (dq_oe_wire),
+	.cs_n_pad_o    (SDRAM_CS_N),
+	.cke_pad_o   (SDRAM_CKE),
+   //.wb_clk (USB_IFCLK),
+   .wb_rst(WB_RST),
+	.wb_adr_i (WB_ADDR),
+	.wb_stb_i (WB_STB),
+	.wb_cyc_i(WB_CYC),
+	.wb_cti_i(wb_cti_wire),
+	.wb_bte_i(wb_bte_wire),
+	.wb_we_i (WB_WE),
+	.wb_sel_i (WB_SEL),
+	.wb_dat_i (WB_DATA_I),
+	.wb_dat_o (WB_DATA_O),
+	.wb_ack_o (WB_ACK),
+	.OUTPUT_SDRAM_CLK (OUTPUT_SDRAM_CLK),
+	.CYCLE_COUNT(CYCLE_COUNT),
+	.SDRAM_CMD(SDRAM_CMD), 
+	.SDRAM_STATE (SDRAM_STATE)
 );
-
-//IS42VM16400K r_sdram (
-//   .dq (SDRAM_DQ),
-//	.addr  (SDRAM_ADDR),
-//	.dqm   (SDRAM_DQM),
-//   .web    (SDRAM_WE_N),
-//	.casb   (SDRAM_CAS_N),
-//	.rasb   (SDRAM_RAS_N),
-//	.ba    (SDRAM_BA),
-//	.clk   (SDRAM_CLK),
-//	.csb    (SDRAM_CS_N),
-//	.cke   (SDRAM_CKE)
+//
+//sdram #(
+//.DATA_WIDTH (16)
+//) u_sdram (
+//   .clk_i (USB_IFCLK),
+//   .rst_i(WB_RST),
+//	.stb_i (WB_STB),
+//	.we_i (WB_WE),
+//	.sel_i (WB_SEL),
+//   .cyc_i(WB_CYC),
+//	.addr_i (WB_ADDR),
+//	.data_i (WB_DATA_I),
+//	.data_o (WB_DATA_O),
+//   .stall_o(WB_STALL),
+//	.ack_o (WB_ACK),
+//
+//   .sdram_data_io (SDRAM_DQ),
+//	.sdram_addr_o  (SDRAM_ADDR),
+//	.sdram_dqm_o   (SDRAM_DQM),
+//   .sdram_we_o    (SDRAM_WE_N),
+//	.sdram_cas_o   (SDRAM_CAS_N),
+//	.sdram_ras_o   (SDRAM_RAS_N),
+//	.sdram_ba_o    (SDRAM_BA),
+//	.sdram_clk_o   (SDRAM_CLK),
+//	.sdram_cs_o    (SDRAM_CS_N),
+//	.sdram_cke_o   (SDRAM_CKE),
+//	.SDRAM_STATE (SDRAM_STATE),
+//	.SDRAM_CMD (SDRAM_CMD)
 //);
 
-MT48LC8M16A2 r_sdram (
+IS42VM16400K r_sdram (
    .dq (SDRAM_DQ),
 	.addr  (SDRAM_ADDR),
 	.dqm   (SDRAM_DQM),
@@ -256,6 +260,19 @@ MT48LC8M16A2 r_sdram (
 	.csb    (SDRAM_CS_N),
 	.cke   (SDRAM_CKE)
 );
+
+//MT48LC8M16A2 r_sdram (
+//   .dq (SDRAM_DQ),
+//	.addr  (SDRAM_ADDR),
+//	.dqm   (SDRAM_DQM),
+//   .web    (SDRAM_WE_N),
+//	.casb   (SDRAM_CAS_N),
+//	.rasb   (SDRAM_RAS_N),
+//	.ba    (SDRAM_BA),
+//	.clk   (SDRAM_CLK),
+//	.csb    (SDRAM_CS_N),
+//	.cke   (SDRAM_CKE)
+//);
 
 /*
 ×´Ì¬»ú

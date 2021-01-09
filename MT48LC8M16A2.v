@@ -180,15 +180,15 @@ module MT48LC8M16A2 (dq, addr, ba, clk, cke, csb, rasb, casb, web, dqm);
     end
  
     // System clock generator
-    always begin
+    always 
         @ (posedge clk) begin
             Sys_clk = CkeZ;
             CkeZ = cke;
         end
-        @ (negedge clk) begin
+     always   @ (negedge clk) begin
             Sys_clk = 1'b0;
         end
-    end
+    
  
     always @ (posedge Sys_clk) begin
         // Internal Commamd Pipelined

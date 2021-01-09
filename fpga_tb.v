@@ -38,12 +38,6 @@ module fpga_tb;
 	wire USB_SLWR;
 	wire USB_SLOE;
 	wire USB_PKEND;
-	
-	wire [15: 0] BUFF0;
-	wire [15: 0] BUFF1;
-	wire [15: 0] BUFF2;
-	wire [15: 0] BUFF3;
-	wire [15: 0] BUFF4;
 	wire WB_RST;
 	wire WB_STB;
 	wire WB_WE;
@@ -57,7 +51,9 @@ module fpga_tb;
 	
 	wire [3:0] STATE;
 	wire [3:0] SDRAM_STATE;
-	wire [3:0] SDRAM_CMD;
+	wire [4:0] SDRAM_CMD;
+	wire OUTPUT_SDRAM_CLK;
+	wire [31:0] CYCLE_COUNT;
 	
 	wire [15:0]SDRAM_DQ;
 	wire [12:0]SDRAM_ADDR;
@@ -85,12 +81,6 @@ module fpga_tb;
 		.USB_FLAGA(USB_FLAGA),  
 		.USB_FLAGD(USB_FLAGD), 
 		.USB_PKEND(USB_PKEND), 
-		.BUFF0(BUFF0),
-		.BUFF1(BUFF1),
-		.BUFF2(BUFF2),
-		.BUFF3(BUFF3),
-		.BUFF4(BUFF4),
-		.STATE(STATE),
 		.SDRAM_DQ (SDRAM_DQ),
 		.SDRAM_ADDR (SDRAM_ADDR),
 		.SDRAM_DQM (SDRAM_DQM),
@@ -113,6 +103,9 @@ module fpga_tb;
 		.WB_DATA_O(WB_DATA_O),
 		.WB_STALL(WB_STALL),
 		.WB_ACK(WB_ACK),
+		.STATE(STATE),
+		.OUTPUT_SDRAM_CLK(OUTPUT_SDRAM_CLK),
+		.CYCLE_COUNT(CYCLE_COUNT),
 		.USB_IFCLK(USB_IFCLK)
 	);
 	reg [15:0] in_fifo[0:255];
